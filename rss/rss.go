@@ -1,6 +1,9 @@
 package rss
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"time"
+)
 
 type RSS struct {
 	XMLName        xml.Name `xml:"rss"`
@@ -70,4 +73,16 @@ type Enclosure struct {
 	URL    string `xml:"url,attr,omitempty"`
 	Type   string `xml:"type,attr,omitempty"`
 	Length int64  `xml:"length,attr,omitempty"`
+}
+
+// Sort Interface
+
+type ByPubDate []*Item
+
+func (p ByPubDate) Len() int      { return len(p) }
+func (p ByPubDate) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p ByPubDate) Less(i, j int) bool {
+	iDate, _ := time.Parse(time.RFC1123, p[i].PubDate)
+	jDate, _ := time.Parse(time.RFC1123, p[j].PubDate)
+	return iDate.Unix() < jDate.Unix()
 }

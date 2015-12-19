@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -67,6 +68,7 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	items := []*rss.Item{}
 	err = filepath.Walk(config.Server.FileRoot, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
@@ -89,12 +91,15 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 			Enclosure: &enclosure,
 		}
 
-		feed.Channel.Item = append(feed.Channel.Item, &item)
+		items = append(items, &item)
 		return nil
 	})
 	if err != nil {
 		panic(err)
 	}
+
+	sort.Sort(sort.Reverse(rss.ByPubDate(items)))
+	feed.Channel.Item = items
 
 	buf, err := xml.MarshalIndent(feed, "", " ")
 	if err != nil {
