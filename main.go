@@ -58,7 +58,7 @@ type ChannelImage struct {
 type AtomLink struct {
 	Href string `xml:"href,attr,omitempty"`
 	Rel  string `xml:"rel,attr,omitempty"`
-	Type string `xml:"xml,attr,omitempty"`
+	Type string `xml:"type,attr,omitempty"`
 }
 
 type Item struct {
