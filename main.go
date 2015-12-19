@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/xml"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -102,8 +101,7 @@ func main() {
 
 	http.HandleFunc(config.Server.FeedPath, FeedHandler)
 
-	listen := fmt.Sprintf(":%d", config.Server.Port)
-	http.ListenAndServe(listen, nil)
+	http.ListenAndServe(config.Server.Listen, nil)
 }
 
 func FeedHandler(w http.ResponseWriter, r *http.Request) {

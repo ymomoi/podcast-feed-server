@@ -14,7 +14,7 @@ type RSS struct {
 }
 
 type Server struct {
-	Port     int
+	Listen   string
 	FeedPath string `toml:"feed_path"`
 	FileRoot string `toml:"file_root"`
 }
