@@ -77,7 +77,7 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 
-		name := strings.Replace(info.Name(), ".mp3", "", 1)
+		title := strings.Replace(info.Name(), ".mp3", "", 1)
 		pubDate := info.ModTime().Format(time.RFC1123)
 		url, err := escapeURL(config.RSS.URL + strings.Replace(path, config.Server.FileRoot, "", 1))
 		if err != nil {
@@ -85,7 +85,7 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		enclosure := rss.Enclosure{URL: url, Type: "audio/mpeg", Length: info.Size()}
 		item := rss.Item{
-			Title:     name,
+			Title:     title,
 			PubDate:   pubDate,
 			Guid:      url,
 			Enclosure: &enclosure,
