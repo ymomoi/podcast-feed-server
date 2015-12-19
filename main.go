@@ -10,79 +10,10 @@ import (
 	"time"
 
 	"github.com/f440/podcast-feed-server/config"
+	"github.com/f440/podcast-feed-server/rss"
 )
 
-type RSS struct {
-	XMLName        xml.Name `xml:"rss"`
-	XMLXmlnsAtom   string   `xml:"xmlns:atom,attr"`
-	XMLXmlnsItunes string   `xml:"xmlns:itunes,attr"`
-	XMLVersion     string   `xml:"version,attr"`
-	Channel        *Channel `xml:"channel,omitempty"`
-}
-
-type Channel struct {
-	Title          string        `xml:"title,omitempty"`
-	Description    string        `xml:"description,omitempty"`
-	Link           string        `xml:"link,omitempty"`
-	Language       string        `xml:"language,omitempty"`
-	Copyright      string        `xml:"copyright,omitempty"`
-	ChannelImage   *ChannelImage `xml:"image,omitempty"`
-	Item           []*Item       `xml:"item,omitempty"`
-	LastBuildDate  string        `xml:"lastBuildDate,omitempty"`
-	AtomLink       *AtomLink     `xml:"atom:link,omitempty"`
-	ItunesSubtitle string        `xml:"itunes:subtitle,omitempty"`
-	ItunesAuthor   string        `xml:"itunes:author,omitempty"`
-	ItunesSummary  string        `xml:"itunes:summary,omitempty"`
-	ItunesKeywords string        `xml:"itunes:keywords,omitempty"`
-	ItunesExplicit string        `xml:"itunes:explicit,omitempty"`
-	ItunesOwner    *ItunesOwner  `xml:"itunes:owner,omitempty"`
-	ItunesImage    *ItunesImage
-}
-
-type ItunesOwner struct {
-	ItunesName  string `xml:"itunes:name,omitempty"`
-	ItunesEmail string `xml:"itunes:mail,omitempty"`
-}
-
-type ItunesImage struct {
-	XMLName xml.Name `xml:"itunes:image,omitempty"`
-	Href    string   `xml:"href,attr"`
-}
-
-type ChannelImage struct {
-	URL   string `xml:"url,omitempty"`
-	Title string `xml:"title,omitempty"`
-	Link  string `xml:"link,omitempty"`
-}
-
-type AtomLink struct {
-	Href string `xml:"href,attr,omitempty"`
-	Rel  string `xml:"rel,attr,omitempty"`
-	Type string `xml:"type,attr,omitempty"`
-}
-
-type Item struct {
-	Title                   string     `xml:"title,omitempty"`
-	Description             string     `xml:"description,omitempty"`
-	Guid                    string     `xml:"guid,omitempty"`
-	PubDate                 string     `xml:"pubDate,omitempty"`
-	Enclosure               *Enclosure `xml:"enclosure,omitempty"`
-	ItunesAuthor            string     `xml:"itunes:author,omitempty"`
-	ItunesSubtitle          string     `xml:"itunes:subtitle,omitempty"`
-	ItunesSummary           string     `xml:"itunes:summary,omitempty"`
-	ItunesDuration          string     `xml:"itunes:duration,omitempty"`
-	ItunesExplicit          string     `xml:"itunes:explicit,omitempty"`
-	ItunesOrder             string     `xml:"itunes:order,omitempty"`
-	ItunesisClosedCaptioned string     `xml:"itunes:isClosedCaptioned,omitempty"`
-}
-
-type Enclosure struct {
-	URL    string `xml:"url,attr,omitempty"`
-	Type   string `xml:"type,attr,omitempty"`
-	Length int64  `xml:"length,attr,omitempty"`
-}
-
-func EscapeURL(str string) (string, error) {
+func escapeURL(str string) (string, error) {
 	u, err := url.Parse(str)
 	if err != nil {
 		return "", err
@@ -110,23 +41,33 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	rss := RSS{
+	link, err := url.Parse(config.RSS.URL)
+	if err != nil {
+		panic(err)
+	}
+	feed_url, err := url.Parse(config.RSS.URL)
+	if err != nil {
+		panic(err)
+	}
+	feed_url.Path = config.Server.FeedPath
+
+	feed := rss.RSS{
 		XMLXmlnsAtom:   "http://www.w3.org/2005/Atom",
 		XMLXmlnsItunes: "http://www.itunes.com/dtds/podcast-1.0.dtd",
 		XMLVersion:     "2.0",
 	}
-	rss.Channel = &Channel{
+	feed.Channel = &rss.Channel{
 		Title:       config.RSS.Title,
 		Description: config.RSS.Description,
-		Link:        config.RSS.URL,
-		AtomLink: &AtomLink{
-			Href: config.RSS.URL + config.Server.FeedPath,
+		Link:        link.String(),
+		AtomLink: &rss.AtomLink{
+			Href: feed_url.String(),
 			Rel:  "self",
 			Type: "application/rss+xml",
 		},
 	}
 
-	err := filepath.Walk(config.Server.FileRoot, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(config.Server.FileRoot, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -136,26 +77,29 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 
 		name := strings.Replace(info.Name(), ".mp3", "", 1)
 		pubDate := info.ModTime().Format(time.RFC1123)
-		url, err := EscapeURL(config.RSS.URL + strings.Replace(path, config.Server.FileRoot, "", 1))
+		url, err := escapeURL(config.RSS.URL + strings.Replace(path, config.Server.FileRoot, "", 1))
 		if err != nil {
 			panic(err)
 		}
-		enclosure := Enclosure{URL: url, Type: "audio/mpeg", Length: info.Size()}
-		item := Item{
+		enclosure := rss.Enclosure{URL: url, Type: "audio/mpeg", Length: info.Size()}
+		item := rss.Item{
 			Title:     name,
 			PubDate:   pubDate,
 			Guid:      url,
 			Enclosure: &enclosure,
 		}
 
-		rss.Channel.Item = append(rss.Channel.Item, &item)
+		feed.Channel.Item = append(feed.Channel.Item, &item)
 		return nil
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	buf, _ := xml.MarshalIndent(rss, "", " ")
+	buf, err := xml.MarshalIndent(feed, "", " ")
+	if err != nil {
+		panic(err)
+	}
 
 	w.Header().Set("Content-Type", "application/atom+xml")
 	w.Write([]byte(xml.Header))
