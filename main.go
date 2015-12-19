@@ -107,6 +107,7 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/atom+xml")
+	w.Header().Set("Last-Modified", items[0].PubDate)
 	w.Write([]byte(xml.Header))
 	w.Write(buf)
 }
