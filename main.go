@@ -3,22 +3,15 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/f440/podcast-feed-server/config"
 )
-
-type Config struct {
-	Title       string
-	Description string
-	URL         string
-	FeedURL     string `toml:"feed_url"`
-	FileRoot    string `toml:"file_root"`
-}
 
 type RSS struct {
 	XMLName        xml.Name `xml:"rss"`
@@ -29,30 +22,32 @@ type RSS struct {
 }
 
 type Channel struct {
-	Title          string       `xml:"title,omitempty"`
-	Description    string       `xml:"description,omitempty"`
-	Link           string       `xml:"link,omitempty"`
-	Language       string       `xml:"language,omitempty"`
-	Copyright      string       `xml:"copyright,omitempty"`
-	ChannelImage   ChannelImage `xml:"image,omitempty"`
-	Item           []Item       `xml:"item,omitempty"`
-	PubDate        string       `xml:"pubDate,omitempty"`
-	LastBuildDate  string       `xml:"lastBuildDate,omitempty"`
-	AtomLink       *AtomLink    `xml:"atom:link,omitempty"`
-	ItunesSubtitle string       `xml:"itunes:subtitle,omitempty"`
-	ItunesAuthor   string       `xml:"itunes:author,omitempty"`
-	ItunesSummary  string       `xml:"itunes:summary,omitempty"`
-	ItunesKeywords string       `xml:"itunes:keywords,omitempty"`
-	ItunesExplicit string       `xml:"itunes:explicit,omitempty"`
-	ItunesOwner    ItunesOwner  `xml:"itunes:owner,omitempty"`
-	// ItunesImage
-	// ItunesCategory
-	// ItunesComplete
+	Title          string        `xml:"title,omitempty"`
+	Description    string        `xml:"description,omitempty"`
+	Link           string        `xml:"link,omitempty"`
+	Language       string        `xml:"language,omitempty"`
+	Copyright      string        `xml:"copyright,omitempty"`
+	ChannelImage   *ChannelImage `xml:"image,omitempty"`
+	Item           []*Item       `xml:"item,omitempty"`
+	LastBuildDate  string        `xml:"lastBuildDate,omitempty"`
+	AtomLink       *AtomLink     `xml:"atom:link,omitempty"`
+	ItunesSubtitle string        `xml:"itunes:subtitle,omitempty"`
+	ItunesAuthor   string        `xml:"itunes:author,omitempty"`
+	ItunesSummary  string        `xml:"itunes:summary,omitempty"`
+	ItunesKeywords string        `xml:"itunes:keywords,omitempty"`
+	ItunesExplicit string        `xml:"itunes:explicit,omitempty"`
+	ItunesOwner    *ItunesOwner  `xml:"itunes:owner,omitempty"`
+	ItunesImage    *ItunesImage
 }
 
 type ItunesOwner struct {
 	ItunesName  string `xml:"itunes:name,omitempty"`
 	ItunesEmail string `xml:"itunes:mail,omitempty"`
+}
+
+type ItunesImage struct {
+	XMLName xml.Name `xml:"itunes:image,omitempty"`
+	Href    string   `xml:"href,attr"`
 }
 
 type ChannelImage struct {
@@ -68,18 +63,18 @@ type AtomLink struct {
 }
 
 type Item struct {
-	Title                   string    `xml:"title,omitempty"`
-	Description             string    `xml:"description,omitempty"`
-	Guid                    string    `xml:"guid,omitempty"`
-	PubDate                 string    `xml:"pubDate,omitempty"`
-	Enclosure               Enclosure `xml:"enclosure,omitempty"`
-	ItunesAuthor            string    `xml:"itunes:author,omitempty"`
-	ItunesSubtitle          string    `xml:"itunes:subtitle,omitempty"`
-	ItunesSummary           string    `xml:"itunes:summary,omitempty"`
-	ItunesDuration          string    `xml:"itunes:duration,omitempty"`
-	ItunesExplicit          string    `xml:"itunes:explicit,omitempty"`
-	ItunesOrder             string    `xml:"itunes:order,omitempty"`
-	ItunesisClosedCaptioned string    `xml:"itunes:isClosedCaptioned,omitempty"`
+	Title                   string     `xml:"title,omitempty"`
+	Description             string     `xml:"description,omitempty"`
+	Guid                    string     `xml:"guid,omitempty"`
+	PubDate                 string     `xml:"pubDate,omitempty"`
+	Enclosure               *Enclosure `xml:"enclosure,omitempty"`
+	ItunesAuthor            string     `xml:"itunes:author,omitempty"`
+	ItunesSubtitle          string     `xml:"itunes:subtitle,omitempty"`
+	ItunesSummary           string     `xml:"itunes:summary,omitempty"`
+	ItunesDuration          string     `xml:"itunes:duration,omitempty"`
+	ItunesExplicit          string     `xml:"itunes:explicit,omitempty"`
+	ItunesOrder             string     `xml:"itunes:order,omitempty"`
+	ItunesisClosedCaptioned string     `xml:"itunes:isClosedCaptioned,omitempty"`
 }
 
 type Enclosure struct {
@@ -97,10 +92,23 @@ func EscapeURL(str string) (string, error) {
 }
 
 func main() {
-	now := time.Now().Format(time.RFC822)
-	var config Config
-	_, err := toml.DecodeFile("config.toml", &config)
-	if err != nil {
+	config := config.Config{}
+	if err := config.Load("config.toml"); err != nil {
+		panic(err)
+	}
+
+	fs := http.FileServer(http.Dir(config.Server.FileRoot))
+	http.Handle("/", fs)
+
+	http.HandleFunc(config.Server.FeedPath, FeedHandler)
+
+	listen := fmt.Sprintf(":%d", config.Server.Port)
+	http.ListenAndServe(listen, nil)
+}
+
+func FeedHandler(w http.ResponseWriter, r *http.Request) {
+	config := config.Config{}
+	if err := config.Load("config.toml"); err != nil {
 		panic(err)
 	}
 
@@ -110,20 +118,17 @@ func main() {
 		XMLVersion:     "2.0",
 	}
 	rss.Channel = &Channel{
-		Title:       config.Title,
-		Description: config.Description,
-		Link:        config.URL,
-		PubDate:     now,
+		Title:       config.RSS.Title,
+		Description: config.RSS.Description,
+		Link:        config.RSS.URL,
 		AtomLink: &AtomLink{
-			Href: config.FeedURL,
+			Href: config.RSS.URL + config.Server.FeedPath,
 			Rel:  "self",
 			Type: "application/rss+xml",
 		},
 	}
 
-	os.Chdir(config.FileRoot)
-	root := "."
-	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(config.Server.FileRoot, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -131,9 +136,9 @@ func main() {
 			return nil
 		}
 
-		name := strings.Replace(info.Name(), ".mp3", "", -1)
+		name := strings.Replace(info.Name(), ".mp3", "", 1)
 		pubDate := info.ModTime().Format(time.RFC1123)
-		url, err := EscapeURL(config.URL + path)
+		url, err := EscapeURL(config.RSS.URL + strings.Replace(path, config.Server.FileRoot, "", 1))
 		if err != nil {
 			panic(err)
 		}
@@ -142,10 +147,10 @@ func main() {
 			Title:     name,
 			PubDate:   pubDate,
 			Guid:      url,
-			Enclosure: enclosure,
+			Enclosure: &enclosure,
 		}
 
-		rss.Channel.Item = append(rss.Channel.Item, item)
+		rss.Channel.Item = append(rss.Channel.Item, &item)
 		return nil
 	})
 	if err != nil {
@@ -154,5 +159,7 @@ func main() {
 
 	buf, _ := xml.MarshalIndent(rss, "", " ")
 
-	fmt.Println(xml.Header + string(buf))
+	w.Header().Set("Content-Type", "application/atom+xml")
+	w.Write([]byte(xml.Header))
+	w.Write(buf)
 }

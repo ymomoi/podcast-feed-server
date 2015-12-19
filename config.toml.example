@@ -1,7 +1,9 @@
+[rss]
 title = "my podcast"
 description = "my podcast"
 url = "http://localhost:3000/"
-feed_url = "http://localhost:3000/feed.xml"
 
-file_root = "/Users/f440/Desktop"
-publish_root = "http://podcast.localhost:3000/"
+[server]
+port = 3000
+file_root = "/Users/f440/Music/mp3/"
+feed_path = "/feed.xml"
