@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/f440/podcast-feed-server/config"
-	"github.com/f440/podcast-feed-server/rss"
+	"github.com/ymomoi/podcast-feed-server/config"
+	"github.com/ymomoi/podcast-feed-server/rss"
 )
 
 func escapeURL(str string) (string, error) {
