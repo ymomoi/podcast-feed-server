@@ -2,3 +2,5 @@ package: github.com/ymomoi/podcast-feed-server
 import:
 - package: github.com/BurntSushi/toml
   version: ^0.2.0
+- package: github.com/bogem/id3v2
+  version: ^0.8.5

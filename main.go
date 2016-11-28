@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	tag "github.com/wtolson/go-taglib"
+	"github.com/bogem/id3v2"
 	"github.com/ymomoi/podcast-feed-server/config"
 	"github.com/ymomoi/podcast-feed-server/rss"
 )
@@ -79,10 +79,15 @@ func feedHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// read id3 tag
-		var title string
-		fp, err := tag.Read(info.Name())
+		title := ""
+		fp, err := id3v2.Open(path)
 		if err == nil {
-			title = fp.Title() + " " + fp.Comment()
+			title = fp.Title()
+			cmf := fp.GetLastFrame("COMM")
+			cm, ok := cmf.(id3v2.CommentFrame)
+			if ok {
+				title = title + " " + cm.Text
+			}
 		} else {
 			title = strings.Replace(info.Name(), ".mp3", "", 1)
 		}

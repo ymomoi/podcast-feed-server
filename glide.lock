@@ -1,12 +1,16 @@
-hash: d4cd7a60059ad0f1ac425413b3c7f12533f6125ee5a8ccac7645d98f97bc42ca
-updated: 2016-11-29T01:05:07.613944984+09:00
+hash: a8b03ef01228f9658fbd2cf6082dd1e256e8a517956bf68c268478052d2eaa62
+updated: 2016-11-29T02:12:26.053575449+09:00
 imports:
+- name: github.com/bogem/id3v2
+  version: af355f1edffd0c8c4f795c2b931b89c459f33524
+  subpackages:
+  - bbpool
+  - rdpool
+  - util
 - name: github.com/BurntSushi/toml
-  version: ""
-- name: github.com/wtolson/go-taglib
-  version: 6e68349ff94ecea412de7e748cb5eaa26f472777
+  version: bbd5bb678321a0d6e58f1099321dfa73391c1b6f
 - name: github.com/ymomoi/podcast-feed-server
-  version: 87f049cb350ccdd1df420825d264b6ef09bd584e
+  version: cc2350422282b09c8edcc9768fa7db4ba8b2e521
   subpackages:
   - config
   - rss
