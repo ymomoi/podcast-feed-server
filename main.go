@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	tag "github.com/wtolson/go-taglib"
 	"github.com/ymomoi/podcast-feed-server/config"
 	"github.com/ymomoi/podcast-feed-server/rss"
 )
@@ -77,7 +78,14 @@ func feedHandler(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 
-		title := strings.Replace(info.Name(), ".mp3", "", 1)
+		// read id3 tag
+		var title string
+		fp, err := tag.Read(info.Name())
+		if err == nil {
+			title = fp.Title() + " " + fp.Comment()
+		} else {
+			title = strings.Replace(info.Name(), ".mp3", "", 1)
+		}
 		pubDate := info.ModTime().Format(time.RFC1123)
 		url, err := escapeURL(config.RSS.URL + strings.Replace(path, config.Server.FileRoot, "", 1))
 		if err != nil {
