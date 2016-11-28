@@ -31,12 +31,12 @@ func main() {
 	fs := http.FileServer(http.Dir(config.Server.FileRoot))
 	http.Handle("/", fs)
 
-	http.HandleFunc(config.Server.FeedPath, FeedHandler)
+	http.HandleFunc(config.Server.FeedPath, feedHandler)
 
 	http.ListenAndServe(config.Server.Listen, nil)
 }
 
-func FeedHandler(w http.ResponseWriter, r *http.Request) {
+func feedHandler(w http.ResponseWriter, r *http.Request) {
 	config := config.Config{}
 	if err := config.Load("config.toml"); err != nil {
 		panic(err)
@@ -46,11 +46,11 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	feed_url, err := url.Parse(config.RSS.URL)
+	feedURL, err := url.Parse(config.RSS.URL)
 	if err != nil {
 		panic(err)
 	}
-	feed_url.Path = config.Server.FeedPath
+	feedURL.Path = config.Server.FeedPath
 
 	feed := rss.RSS{
 		XMLXmlnsAtom:   "http://www.w3.org/2005/Atom",
@@ -62,7 +62,7 @@ func FeedHandler(w http.ResponseWriter, r *http.Request) {
 		Description: config.RSS.Description,
 		Link:        link.String(),
 		AtomLink: &rss.AtomLink{
-			Href: feed_url.String(),
+			Href: feedURL.String(),
 			Rel:  "self",
 			Type: "application/rss+xml",
 		},
